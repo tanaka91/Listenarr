@@ -116,6 +116,22 @@ namespace Listenarr.Api.Extensions
                 .AddPolicyHandler(circuitBreakerPolicy)
                 .AddPolicyHandler(retryPolicy);
 
+            // Deluge manages its own cookie-based session auth per call sequence;
+            // UseCookies=false here because the adapter creates its own CookieContainer.
+            services.AddHttpClient("deluge")
+                .ConfigureHttpClient(client =>
+                {
+                    client.Timeout = TimeSpan.FromSeconds(30);
+                })
+                .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+                {
+                    AutomaticDecompression = DecompressionMethods.All,
+                    UseCookies = false
+                })
+                .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+                .AddPolicyHandler(circuitBreakerPolicy)
+                .AddPolicyHandler(retryPolicy);
+
             // Direct download client with extended timeout for large files
             services.AddHttpClient("DirectDownload")
                 .ConfigureHttpClient(client =>
@@ -229,6 +245,7 @@ namespace Listenarr.Api.Extensions
             services.AddScoped<IDownloadClientAdapter, Listenarr.Api.Services.Adapters.TransmissionAdapter>();
             services.AddScoped<IDownloadClientAdapter, Listenarr.Api.Services.Adapters.SabnzbdAdapter>();
             services.AddScoped<IDownloadClientAdapter, Listenarr.Api.Services.Adapters.NzbgetAdapter>();
+            services.AddScoped<IDownloadClientAdapter, Listenarr.Api.Services.Adapters.DelugeAdapter>();
 
             // Register the concrete factory as scoped so it can safely resolve scoped adapters via DI.
             services.AddScoped<IDownloadClientAdapterFactory, Listenarr.Api.Services.Adapters.DownloadClientAdapterFactory>();
